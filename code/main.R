@@ -99,7 +99,7 @@ lUczestnikowAgg <- lUczestnikow[,
                                 .(efficiency = median(efficiency)),
                                 by = .(liczbaUczestnikow)]
 
-save.image("2.RData")
+
 min(lUczestnikowAgg$efficiency)
 which.min(lUczestnikowAgg$efficiency)
 
@@ -132,6 +132,7 @@ setwd(path)
 NLQuit()
 setwd(oldPath)
 
+save.image("dane.RData")
 render(input = "KCiulkin.Rmd")
 
 
