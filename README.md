@@ -1,5 +1,4 @@
 # zero_intelligence_R
-R replica of presented in Gode, Sunder (1993) simulation
+An example of RNetLogo application to do an automated document (RMarkdown).
 
-need to change the approach to a single double auction at a time:
-"Each bid, ask, and transaction was valid for a single unit. A transaction canceled any unaccepted bids and offers. Finally, when a bid and ask crossed, the transaction price was equal to the earlier of the two."
+The used model ist a replica of presented in Gode, Sunder (1993) simulation downloaded from the https://github.com/memcbride/ZITrading.
