@@ -1,0 +1,108 @@
+---
+title: "Agent based economics z użyciem RNetLogo. Przykład Zero Intelligence Trading."
+author: "Karol Ciulkin"
+date: "29 czerwca 2016"
+output: html_document
+---
+
+Niniejszy dokument stanowi przykład analizy modelu wieloagentowego. Aby samodzielnie wygenerować taki plik konieczne jest zainstalowanie NetLogo (najlepiej w wersji 5.3.1) oraz (w R) pakietów `RNetLogo`, `ggplot2` oraz `data.table`, a następnie wykonanie skryptu `code/main.R` będącego elementem niniejszego projektu. Zawiera on część generującą dane oraz wykonuje plik `.Rmd`. Można przyspieszyć jego działanie zmniejszając wartość zmiennej `ilePowtorzen` oraz różnicę w dwuelementowym wektorze `zakresHeatmap`.
+
+```{r, message = F}
+library(RNetLogo)
+library(ggplot2)
+library(data.table)
+```
+
+Pierwszy z pakietów służy do komunikacji pomiędzy R a NetLogo. Używa przy tym Javy i pakietu `rJava`. Aktualność tychże zostanie prawdopodobnie zweryfikowana przy instalacji powyższego pakietu, ale warto o tym pamiętać.
+
+## Sesja NetLogo
+
+W kolejnym kroku inicjalizuje się sesję NetLogo. Aby poniższy kod działał prawidłowo, zmienna`path` powinna wskazywać ścieżkę do folderu zawierającego plik wykonywalny NetLogo. Zmienna `modelPath` opisuje z kolei ścieżkę względną z tego miejsca do folderu zawierającego model.
+
+## Opis modelu
+
+Użyty w niniejszym raporcie model pochodzi z https://github.com/memcbride/ZITrading. Jest to klasyczny model Gode i Sunder (1993) napisany w języku NetLogo.
+
+Celem Gode i Sunder (1993) była weryfikacja hipotezy, że do efektywnego działania rynków konieczne jest klasyczne dla nauk ekonomicznych założenie racjonalności podmiotów działających na rynku. W tym celu napisali oni model symulacyjny, w którym dwa rodzaje agentów (sprzedający i kupujący) handlują na rynku, na którym ceny są ustalane z użyciem mechanizmu podwójnej aukcji (ang. *double action*).
+Następnie przeprowadzili eksperymenty obliczeniowe (*computational experiments*) oraz eksperyment ekonomiczny, w którym brali udział studenci.
+
+W pierwszym eksperymencie w rynkach uczestniczyli agenci "głupi" (*zero intelligence*), którzy zgłaszali losowe ceny. Rynki takie nie osiągały wysokiej efektywności.
+
+W drugim na rynku działali agenci o ograniczonej racjonalności (*zero intelligence with constraints*). W ich przypadku cena, którą mieli zgłosić (generowana z użyciem tego samego procesu losowego co  u "głupich" agentów) była przez nich zgłaszana zgłaszana tylko jeśli spełniała ich ograniczenie budżetowe.
+
+Autorom udało się udowodnić, że do osiągnięcia satysfakcjonującej efektywności wystarczy jedynie ograniczona racjonalność agentów działających na rynku. Wyniki osiągane przez takich agentów były porównywalne z tymi, które osiągali uczestniczący w eksperymentach studenci, choć osiągane ceny charakteryzowały się większą wariancją. Publikacja wyników tego badania spowodowała wzrost zainteresowania naukowego projektowaniem mechanizmów rynkowych w celu ograniczenia występowania kryzysów.
+
+## Analiza wpływu parametrów modelu na efektywność
+
+Wynikiem symulacji z użyciem pakietu mogą być różne zestawy zmiennych. W niniejszym dokumencie skupię się na wyjaśnianiu efektywności. Gode i Sunder rozumieją ją jako stosunek wygenerowanej podaży do maksymalnej możliwej podaży przy danych krzywych (popytu i podaży). Ujemna efektywność oznacza zatem ujemną podaż. Nie wiem jak to możliwe, ale model akceptuje takie wyniki.
+
+```{r, echo = F, fig.align = "center"}
+plot1 <- ggplot(data = df) +
+  geom_line(mapping = aes(x = ticks, y = value, color = variable)) +
+  ggtitle("Zmienność cen i efektywności rynku") +
+  theme_bw() + xlab("")
+plot2 <- ggplot(data = ogry) +
+  geom_line(mapping = aes(x = ticks, y = efficiency, color = racjonalnosc)) +
+  ggtitle("Zależność pomiędzy typem agentów\nbiorących udział w handlu a efektywnością") +
+  theme_bw()
+grid.arrange(plot1, plot2, nrow = 2)
+```
+
+#### Kupujący vs sprzedający
+
+Można porównywać wyniki symulacji w zależności od parametrów. Poniżej znajduje się heatmapa opisująca zależność pomiędzy efektywnością a liczbą kupujących i sprzedających agentów.
+
+```{r, echo = F, fig.align = "center"}
+ggplot(przejscie) +
+  geom_tile(aes(x = nOfSellers, y = nOfBuyers, fill = efficiency)) +
+  ggtitle("Efektywność vs liczby sprzedawców i kupujących") +
+  theme_bw()
+```
+
+Jak widać, brak jest jednoznacznej, na przykład liniowej zależności. Da się natomiast zauważyć, że najniższe wartości są obserwowane przy `r przejscie[which.min(przejscie$efficiency),]$nOfBuyers` kupujących oraz `r przejscie[which.min(przejscie$efficiency),]$nOfSellers` sprzedających. Można więc przyjrzeć się temu wycinkowi bliżej:
+
+```{r, echo = F,  fig.align = "center"}
+ggplot(przejscie2agg) +
+  geom_tile(aes(x = nOfSellers, y = nOfBuyers, fill = efficiency)) +
+  ggtitle(paste0("Mediana efektywności rynku vs liczby sprzedawców i kupujących\nw otoczeniu punktu (",
+                 przejscie[which.min(przejscie$efficiency),]$nOfSellers, ", ",
+                 przejscie[which.min(przejscie$efficiency),]$nOfBuyers, ")")) +
+  theme_bw()
+```
+
+#### Liczba uczestników rynku
+
+Ciekawy może być również wpływ liczby uczestników rynku na osiąganą efektywność. W celu zwizualizowania tej zależności przeprowadzono symulacje na coraz większym rynku, dzieląc uczestników na równe grupy. Dla każdego podziału wykonano po 5 iteracji oraz wybrano medianę efektywności. Wyniki można zobaczyć poniżej:
+
+```{r, echo = F,  fig.align = "center"}
+ggplot(lUczestnikowAgg, aes(x = liczbaUczestnikow, y = efficiency)) +
+  geom_line() + geom_point() + theme_bw() +
+  ggtitle("Efektywność vs liczba uczestników rynku")
+```
+
+
+Maksimum wyniosło `r max(lUczestnikowAgg$efficiency)`%,  a minimum `r round(min(lUczestnikowAgg$efficiency), 2)`%. Poniżej znajduje się wykres pudełkowy efektywności dla `r 4 * ilePowtorzen` realizacji eksperymentu dla `r lUczestnikowAgg[which.min(lUczestnikowAgg$efficiency)]$liczbaUczestnikow` uczestników.
+
+
+```{r echo = F, fig.align = "center"}
+ggplot(dokladn, aes(x = dummy, y = efficiency)) +
+  geom_boxplot() + geom_point(size = 4, shape = 4) + theme_bw() +
+  ggtitle(paste0("Rozklad realizacji zmiennej dla ",
+                 lUczestnikowAgg[which.min(lUczestnikowAgg$efficiency)]$liczbaUczestnikow,
+                 " uczestników rynku")) +
+  scale_x_continuous(name = "", breaks = c())
+```
+
+`r czyPrzypadek`
+
+## Zakończenie
+
+Niniejszy dokument stanowi przykład użycia pakietu `RNetLogo` w automatycznym generowaniu dokumentu z wykorzystaniem `RMarkdown`. Załączone funkcje (ścieżka `code/functions.R`), którymi opakowałem standardowe komendy `RNetLogo` działają jedynie razem z użytym w dokumencie modelem. Mimo to, przejrzenie ich powinno dać podstawową wiedzę o tym, w jaki sposób należy używać pakietu do komunikowania się z NetLogo poprzez R.
+
+## Bibliografia
+
+(@) Gode, D. K., & Sunder, S. (1993). Allocative efficiency of markets with zero-intelligence traders: Market as a partial substitute for individual rationality. Journal of political economy, 119-137.
+(@) R Core Team (2016). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. URL https://www.R-project.org/.
+(@) Thiele, J. C. (2014). R marries NetLogo: introduction to the RNetLogo package.
+(@) Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
+(@) https://github.com/memcbride/ZITrading
